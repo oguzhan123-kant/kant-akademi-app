@@ -11,7 +11,7 @@ const MistakeForm = () => {
     mistakeReason: ''
   });
   const [submittedData, setSubmittedData] = useState([]);
-  const [userMistakes, setUserMistakes] = useState([]);
+  const userId = "defaultUserId"; // Şimdilik default bir userId kullanıyoruz
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -23,46 +23,85 @@ const MistakeForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { subject, topic, mistakeCount } = formData;
-    const userId = "defaultUserId"; // Şimdilik default bir userId kullanıyoruz
+    const { subject, topic, examName, mistakeCount, mistakeReason } = formData;
 
-    // Kullanıcı belgesi referansı
-    const docRef = doc(db, "mistakes", userId);
-    const docSnap = await getDoc(docRef);
+    // DetailedMistakes koleksiyonuna veri ekleme
+    const detailedDocRef = doc(db, "DetailedMistakes", userId);
+    const detailedDocSnap = await getDoc(detailedDocRef);
 
-    if (docSnap.exists()) {
-      // Belge varsa, ilgili subject-topic kombinasyonunu güncelle
-      const currentData = docSnap.data();
+    if (detailedDocSnap.exists()) {
+      // Belge varsa, mistakes dizisini güncelle
+      const currentData = detailedDocSnap.data();
       const mistakes = currentData.mistakes || [];
-      const index = mistakes.findIndex(
+      mistakes.push({
+        subject,
+        topic,
+        examName,
+        mistakeCount: parseInt(mistakeCount),
+        mistakeReason
+      });
+
+      await updateDoc(detailedDocRef, { mistakes });
+    } else {
+      // Belge yoksa, yeni bir belge oluştur
+      const mistakes = [
+        {
+          subject,
+          topic,
+          examName,
+          mistakeCount: parseInt(mistakeCount),
+          mistakeReason
+        }
+      ];
+
+      await setDoc(detailedDocRef, {
+        userId,
+        mistakes
+      });
+    }
+
+    // Mistakes koleksiyonunu güncelleme
+    const totalsDocRef = doc(db, "Mistakes", userId);
+    const totalsDocSnap = await getDoc(totalsDocRef);
+
+    if (totalsDocSnap.exists()) {
+      // Belge varsa, ilgili subject-topic kombinasyonunu güncelle
+      const currentData = totalsDocSnap.data();
+      const mistakeTotals = currentData.mistakeTotals || [];
+      const index = mistakeTotals.findIndex(
         (mistake: any) => mistake.subject === subject && mistake.topic === topic
       );
 
       if (index > -1) {
-        mistakes[index].totalMistakes += parseInt(mistakeCount);
+        mistakeTotals[index].totalMistakes += parseInt(mistakeCount);
+        mistakeTotals[index].reasonCounts[mistakeReason] = (mistakeTotals[index].reasonCounts[mistakeReason] || 0) + parseInt(mistakeCount);
       } else {
-        mistakes.push({
+        mistakeTotals.push({
           subject,
           topic,
-          totalMistakes: parseInt(mistakeCount)
+          totalMistakes: parseInt(mistakeCount),
+          reasonCounts: {
+            [mistakeReason]: parseInt(mistakeCount)
+          }
         });
       }
 
-      console.log("Updating document with mistakes: ", mistakes);
-      await updateDoc(docRef, { mistakes });
+      await updateDoc(totalsDocRef, { mistakeTotals });
     } else {
-      // Belge yoksa, yeni bir belge oluştur
-      const newMistakes = [
+      const mistakeTotals = [
         {
           subject,
           topic,
-          totalMistakes: parseInt(mistakeCount)
+          totalMistakes: parseInt(mistakeCount),
+          reasonCounts: {
+            [mistakeReason]: parseInt(mistakeCount)
+          }
         }
       ];
-      console.log("Setting new document with mistakes: ", newMistakes);
-      await setDoc(docRef, {
+
+      await setDoc(totalsDocRef, {
         userId,
-        mistakes: newMistakes
+        mistakeTotals
       });
     }
 
@@ -74,18 +113,6 @@ const MistakeForm = () => {
       mistakeCount: '',
       mistakeReason: ''
     });
-  };
-
-  const fetchUserMistakes = async () => {
-    const userId = "defaultUserId"; // Şimdilik default bir userId kullanıyoruz
-    const docRef = doc(db, "mistakes", userId);
-    const docSnap = await getDoc(docRef);
-
-    if (docSnap.exists()) {
-      setUserMistakes(docSnap.data().mistakes);
-    } else {
-      setUserMistakes([]);
-    }
   };
 
   return (
@@ -143,33 +170,6 @@ const MistakeForm = () => {
           </button>
         </div>
       </form>
-
-      <button onClick={fetchUserMistakes} className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-4">
-        Show Mistakes
-      </button>
-
-      {userMistakes.length > 0 && (
-        <div className="overflow-x-auto mt-4">
-          <table className="min-w-full bg-white">
-            <thead>
-              <tr>
-                <th className="py-2 px-4 border-b-2 border-gray-300">Subject</th>
-                <th className="py-2 px-4 border-b-2 border-gray-300">Topic</th>
-                <th className="py-2 px-4 border-b-2 border-gray-300">Total Mistakes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {userMistakes.map((mistake, index) => (
-                <tr key={index}>
-                  <td className="py-2 px-4 border-b">{mistake.subject}</td>
-                  <td className="py-2 px-4 border-b">{mistake.topic}</td>
-                  <td className="py-2 px-4 border-b">{mistake.totalMistakes}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   );
 };
