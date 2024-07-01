@@ -11,6 +11,7 @@ const MistakeForm = () => {
     mistakeReason: ''
   });
   const [submittedData, setSubmittedData] = useState([]);
+  const [userMistakes, setUserMistakes] = useState([]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -47,18 +48,21 @@ const MistakeForm = () => {
         });
       }
 
+      console.log("Updating document with mistakes: ", mistakes);
       await updateDoc(docRef, { mistakes });
     } else {
       // Belge yoksa, yeni bir belge oluştur
+      const newMistakes = [
+        {
+          subject,
+          topic,
+          totalMistakes: parseInt(mistakeCount)
+        }
+      ];
+      console.log("Setting new document with mistakes: ", newMistakes);
       await setDoc(docRef, {
         userId,
-        mistakes: [
-          {
-            subject,
-            topic,
-            totalMistakes: parseInt(mistakeCount)
-          }
-        ]
+        mistakes: newMistakes
       });
     }
 
@@ -70,6 +74,18 @@ const MistakeForm = () => {
       mistakeCount: '',
       mistakeReason: ''
     });
+  };
+
+  const fetchUserMistakes = async () => {
+    const userId = "defaultUserId"; // Şimdilik default bir userId kullanıyoruz
+    const docRef = doc(db, "mistakes", userId);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      setUserMistakes(docSnap.data().mistakes);
+    } else {
+      setUserMistakes([]);
+    }
   };
 
   return (
@@ -128,26 +144,26 @@ const MistakeForm = () => {
         </div>
       </form>
 
-      {submittedData.length > 0 && (
-        <div className="overflow-x-auto">
+      <button onClick={fetchUserMistakes} className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-4">
+        Show Mistakes
+      </button>
+
+      {userMistakes.length > 0 && (
+        <div className="overflow-x-auto mt-4">
           <table className="min-w-full bg-white">
             <thead>
               <tr>
                 <th className="py-2 px-4 border-b-2 border-gray-300">Subject</th>
                 <th className="py-2 px-4 border-b-2 border-gray-300">Topic</th>
-                <th className="py-2 px-4 border-b-2 border-gray-300">Exam Name</th>
-                <th className="py-2 px-4 border-b-2 border-gray-300">Mistake Count</th>
-                <th className="py-2 px-4 border-b-2 border-gray-300">Mistake Reason</th>
+                <th className="py-2 px-4 border-b-2 border-gray-300">Total Mistakes</th>
               </tr>
             </thead>
             <tbody>
-              {submittedData.map((data, index) => (
+              {userMistakes.map((mistake, index) => (
                 <tr key={index}>
-                  <td className="py-2 px-4 border-b">{data.subject}</td>
-                  <td className="py-2 px-4 border-b">{data.topic}</td>
-                  <td className="py-2 px-4 border-b">{data.examName}</td>
-                  <td className="py-2 px-4 border-b">{data.mistakeCount}</td>
-                  <td className="py-2 px-4 border-b">{data.mistakeReason}</td>
+                  <td className="py-2 px-4 border-b">{mistake.subject}</td>
+                  <td className="py-2 px-4 border-b">{mistake.topic}</td>
+                  <td className="py-2 px-4 border-b">{mistake.totalMistakes}</td>
                 </tr>
               ))}
             </tbody>
