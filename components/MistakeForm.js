@@ -1,6 +1,6 @@
 "use client";
-
 import { useState } from 'react';
+import { db, doc, setDoc, updateDoc, getDoc } from '../firebase/config.ts'; // firebaseConfig dosyanızın yolunu ayarlayın
 
 const MistakeForm = () => {
   const [formData, setFormData] = useState({
@@ -20,8 +20,48 @@ const MistakeForm = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    const { subject, topic, mistakeCount } = formData;
+    const userId = "defaultUserId"; // Şimdilik default bir userId kullanıyoruz
+
+    // Kullanıcı belgesi referansı
+    const docRef = doc(db, "users", userId);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      // Belge varsa, ilgili subject-topic kombinasyonunu güncelle
+      const currentData = docSnap.data();
+      const mistakes = currentData.mistakes || [];
+      const index = mistakes.findIndex(
+        (mistake) => mistake.subject === subject && mistake.topic === topic
+      );
+
+      if (index > -1) {
+        mistakes[index].totalMistakes += parseInt(mistakeCount);
+      } else {
+        mistakes.push({
+          subject,
+          topic,
+          totalMistakes: parseInt(mistakeCount)
+        });
+      }
+
+      await updateDoc(docRef, { mistakes });
+    } else {
+      // Belge yoksa, yeni bir belge oluştur
+      await setDoc(docRef, {
+        userId,
+        mistakes: [
+          {
+            subject,
+            topic,
+            totalMistakes: parseInt(mistakeCount)
+          }
+        ]
+      });
+    }
+
     setSubmittedData([...submittedData, formData]);
     setFormData({
       subject: '',
