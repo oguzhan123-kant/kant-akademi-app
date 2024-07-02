@@ -11,6 +11,9 @@ export default function Home() {
         <Link href="/view-mistakes" className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
           View Mistakes
         </Link>
+        <Link href="/deneme-mistake" className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+          Deneme Sonuçlarını gir
+        </Link>
       </div>
     </div>
   );
